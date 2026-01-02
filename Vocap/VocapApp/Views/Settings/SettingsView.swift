@@ -3,7 +3,7 @@ import SwiftUI
 /// Settings view with account and notification options
 struct SettingsView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
-    
+
     var body: some View {
         NavigationStack {
             List {
@@ -14,7 +14,7 @@ struct SettingsView: View {
                             Image(systemName: "person.circle.fill")
                                 .font(.title)
                                 .foregroundColor(.accentColor)
-                            
+
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(user.email)
                                     .font(.body)
@@ -25,7 +25,7 @@ struct SettingsView: View {
                         }
                         .padding(.vertical, 4)
                     }
-                    
+
                     Button(role: .destructive) {
                         Task {
                             await authViewModel.signOut()
@@ -37,7 +37,7 @@ struct SettingsView: View {
                         }
                     }
                 }
-                
+
                 // Notifications Section (placeholder for now)
                 Section("Notifications") {
                     NavigationLink {
@@ -46,7 +46,7 @@ struct SettingsView: View {
                         Label("Notification Schedule", systemImage: "bell.badge.fill")
                     }
                 }
-                
+
                 // About Section
                 Section("About") {
                     HStack {
@@ -70,11 +70,11 @@ struct NotificationSettingsPlaceholder: View {
             Image(systemName: "bell.badge.fill")
                 .font(.system(size: 64))
                 .foregroundColor(.accentColor)
-            
+
             Text("Coming Soon")
                 .font(.title2)
                 .fontWeight(.semibold)
-            
+
             Text("Notification scheduling will be\navailable in a future update")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
@@ -91,4 +91,3 @@ struct NotificationSettingsPlaceholder: View {
     SettingsView()
         .environmentObject(AuthViewModel())
 }
-

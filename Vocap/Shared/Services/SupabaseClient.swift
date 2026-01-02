@@ -1,23 +1,14 @@
 import Foundation
 import Supabase
 
-/// Singleton Supabase client instance
-final class SupabaseManager: @unchecked Sendable {
-    static let shared = SupabaseManager()
-    
-    /// The Supabase client
-    let client: SupabaseClient
-    
-    private init() {
-        client = SupabaseClient(
-            supabaseURL: Constants.Supabase.url,
-            supabaseKey: Constants.Supabase.anonKey
-        )
-    }
-}
+/// Global Supabase client instance
+/// Configured with credentials from Secrets.swift
+let supabase: SupabaseClient = {
+    let url = URL(string: Secrets.supabaseURL)!
+    let key = Secrets.supabaseAnonKey
 
-/// Convenience accessor for the Supabase client
-var supabase: SupabaseClient {
-    SupabaseManager.shared.client
-}
-
+    return SupabaseClient(
+        supabaseURL: url,
+        supabaseKey: key
+    )
+}()

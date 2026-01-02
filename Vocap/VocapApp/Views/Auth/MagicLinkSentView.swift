@@ -1,121 +1,69 @@
 import SwiftUI
 
-/// Confirmation screen after magic link is sent
+/// View shown after magic link is sent
 struct MagicLinkSentView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
-    @State private var animateCheckmark = false
-
+    
     var body: some View {
         VStack(spacing: 32) {
             Spacer()
-
-            // Animated Checkmark
-            ZStack {
-                Circle()
-                    .fill(Color.green.opacity(0.1))
-                    .frame(width: 120, height: 120)
-
-                Circle()
-                    .stroke(Color.green.opacity(0.3), lineWidth: 3)
-                    .frame(width: 120, height: 120)
-                    .scaleEffect(animateCheckmark ? 1.2 : 1.0)
-                    .opacity(animateCheckmark ? 0 : 1)
-                    .animation(
-                        .easeOut(duration: 1.5)
-                            .repeatForever(autoreverses: false),
-                        value: animateCheckmark
-                    )
-
-                Image(systemName: "envelope.badge.fill")
-                    .font(.system(size: 48))
-                    .foregroundStyle(Color.green, Color.accentColor)
-            }
-            .onAppear {
-                animateCheckmark = true
-            }
-
-            // Title
+            
+            // Success Icon
+            Image(systemName: "envelope.fill")
+                .font(.system(size: 64))
+                .foregroundColor(.accentColor)
+            
+            // Title and Message
             VStack(spacing: 12) {
-                Text("Check your inbox!")
-                    .font(.system(size: 28, weight: .bold, design: .rounded))
-                    .foregroundColor(.primary)
-
+                Text("Check Your Email")
+                    .font(.title)
+                    .fontWeight(.bold)
+                
                 Text("We sent a magic link to")
                     .font(.body)
                     .foregroundColor(.secondary)
-
+                
                 Text(authViewModel.email)
                     .font(.body)
                     .fontWeight(.semibold)
                     .foregroundColor(.accentColor)
+                
+                Text("Click the link in the email to sign in")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.top, 8)
             }
-
-            // Instructions
-            VStack(spacing: 16) {
-                InstructionRow(number: 1, text: "Open the email we just sent")
-                InstructionRow(number: 2, text: "Tap the magic link")
-                InstructionRow(number: 3, text: "You'll be signed in automatically")
-            }
-            .padding(24)
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(Color(.systemGray6))
-            )
             .padding(.horizontal, 32)
-
+            
             Spacer()
-
-            // Footer
+            
+            // Actions
             VStack(spacing: 16) {
-                Text("Didn't receive the email?")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-
-                HStack(spacing: 24) {
-                    Button("Resend") {
-                        Task {
-                            await authViewModel.sendMagicLink()
-                        }
+                Button {
+                    Task {
+                        await authViewModel.sendMagicLink()
                     }
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                    .foregroundColor(.accentColor)
-                    .disabled(authViewModel.isLoading)
-
-                    Button("Try different email") {
-                        authViewModel.backToLogin()
-                    }
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                    .foregroundColor(.secondary)
+                } label: {
+                    Text("Resend Magic Link")
+                        .fontWeight(.medium)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.accentColor.opacity(0.1))
+                        .foregroundColor(.accentColor)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+                
+                Button {
+                    authViewModel.backToLogin()
+                } label: {
+                    Text("Back to Login")
+                        .fontWeight(.medium)
+                        .foregroundColor(.secondary)
                 }
             }
+            .padding(.horizontal, 32)
             .padding(.bottom, 32)
-        }
-        .background(Color(.systemBackground).ignoresSafeArea())
-    }
-}
-
-// MARK: - Instruction Row
-
-struct InstructionRow: View {
-    let number: Int
-    let text: String
-
-    var body: some View {
-        HStack(spacing: 16) {
-            Text("\(number)")
-                .font(.caption)
-                .fontWeight(.bold)
-                .foregroundColor(.white)
-                .frame(width: 24, height: 24)
-                .background(Circle().fill(Color.accentColor))
-
-            Text(text)
-                .font(.subheadline)
-                .foregroundColor(.primary)
-
-            Spacer()
         }
     }
 }
@@ -124,10 +72,11 @@ struct InstructionRow: View {
 
 #Preview {
     MagicLinkSentView()
-        .environmentObject(
-            {
-                let vm = AuthViewModel()
-                vm.email = "test@example.com"
-                return vm
-            }())
+        .environmentObject({
+            let vm = AuthViewModel()
+            vm.email = "user@example.com"
+            vm.authState = .magicLinkSent
+            return vm
+        }())
 }
+

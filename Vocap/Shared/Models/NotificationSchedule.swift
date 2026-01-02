@@ -6,29 +6,29 @@ import SwiftData
 final class NotificationSchedule {
     /// Unique identifier
     @Attribute(.unique) var id: UUID
-    
+
     /// Whether notifications are enabled
     var isEnabled: Bool
-    
+
     /// Hours between notifications (e.g., 4 = every 4 hours)
     var frequencyHours: Int
-    
+
     /// Earliest hour to send notifications (0-23)
     var startHour: Int
-    
+
     /// Latest hour to send notifications (0-23)
     var endHour: Int
-    
+
     /// Days of the week to send notifications (0 = Sunday, 6 = Saturday)
     /// If empty, notifications are sent every day
     var activeDays: [Int]
-    
+
     /// Remote ID from Supabase (for sync)
     var remoteUserId: UUID?
-    
+
     /// Whether this schedule has been synced to the server
     var isSynced: Bool
-    
+
     init(
         id: UUID = UUID(),
         isEnabled: Bool = true,
@@ -48,12 +48,12 @@ final class NotificationSchedule {
         self.remoteUserId = remoteUserId
         self.isSynced = isSynced
     }
-    
+
     /// Get the next notification times for today
     func notificationTimesToday() -> [DateComponents] {
         var times: [DateComponents] = []
         var currentHour = startHour
-        
+
         while currentHour <= endHour {
             var components = DateComponents()
             components.hour = currentHour
@@ -61,10 +61,10 @@ final class NotificationSchedule {
             times.append(components)
             currentHour += frequencyHours
         }
-        
+
         return times
     }
-    
+
     /// Check if notifications should be sent on a given day
     func shouldNotify(on weekday: Int) -> Bool {
         activeDays.isEmpty || activeDays.contains(weekday)
@@ -81,7 +81,7 @@ struct NotificationScheduleDTO: Codable, Sendable {
     let startHour: Int
     let endHour: Int
     let activeDays: [Int]?
-    
+
     enum CodingKeys: String, CodingKey {
         case userId = "user_id"
         case enabled
@@ -90,7 +90,7 @@ struct NotificationScheduleDTO: Codable, Sendable {
         case endHour = "end_hour"
         case activeDays = "active_days"
     }
-    
+
     func toModel() -> NotificationSchedule {
         NotificationSchedule(
             isEnabled: enabled,
@@ -116,4 +116,3 @@ extension NotificationSchedule {
         )
     }
 }
-

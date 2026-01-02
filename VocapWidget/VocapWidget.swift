@@ -68,6 +68,8 @@ struct WordWidgetProvider: TimelineProvider {
     private let appGroupID = "group.com.vocap.app"
     private let wordsKey = "widgetWords"
 
+    init() {}
+
     func placeholder(in context: Context) -> WordEntry {
         .placeholder
     }
@@ -91,8 +93,9 @@ struct WordWidgetProvider: TimelineProvider {
             return
         }
 
-        // Create entries for the next 12 hours, rotating through words
-        for hourOffset in 0..<12 {
+        // Create entries for the next 24 hours, rotating through words
+        // This ensures the widget updates every hour with a different word
+        for hourOffset in 0..<24 {
             let entryDate = Calendar.current.date(
                 byAdding: .hour, value: hourOffset, to: currentDate)!
             let word = words[hourOffset % words.count]
@@ -100,7 +103,11 @@ struct WordWidgetProvider: TimelineProvider {
             entries.append(entry)
         }
 
-        let timeline = Timeline(entries: entries, policy: .atEnd)
+        // Refresh policy: reload after 1 hour to get fresh data
+        // This ensures the widget picks up new words when they're added
+        let refreshDate = Calendar.current.date(
+            byAdding: .hour, value: 1, to: currentDate)!
+        let timeline = Timeline(entries: entries, policy: .after(refreshDate))
         completion(timeline)
     }
 
@@ -117,7 +124,34 @@ struct WordWidgetProvider: TimelineProvider {
         decoder.dateDecodingStrategy = .iso8601
 
         do {
-            return try decoder.decode([WidgetWord].self, from: data)
+            // Decode as WordDTO (which has all WidgetWord fields plus extras)
+            struct WordDTO: Codable {
+                let id: UUID
+                let term: String
+                let definition: String
+                let partOfSpeech: String?
+                let phonetic: String?
+
+                enum CodingKeys: String, CodingKey {
+                    case id
+                    case term
+                    case definition
+                    case partOfSpeech = "part_of_speech"
+                    case phonetic
+                }
+            }
+
+            let dtos = try decoder.decode([WordDTO].self, from: data)
+            // Convert to WidgetWord (ignoring extra fields)
+            return dtos.map { dto in
+                WidgetWord(
+                    id: dto.id,
+                    term: dto.term,
+                    definition: dto.definition,
+                    partOfSpeech: dto.partOfSpeech,
+                    phonetic: dto.phonetic
+                )
+            }
         } catch {
             print("Widget: Failed to decode words: \(error)")
             return []

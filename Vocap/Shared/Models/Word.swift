@@ -6,34 +6,34 @@ import SwiftData
 final class Word {
     /// Unique identifier for the word
     @Attribute(.unique) var id: UUID
-    
+
     /// The vocabulary term
     var term: String
-    
+
     /// Primary definition of the word
     var definition: String
-    
+
     /// Part of speech (noun, verb, adjective, etc.)
     var partOfSpeech: String?
-    
+
     /// Example sentence using the word
     var example: String?
-    
+
     /// Phonetic pronunciation
     var phonetic: String?
-    
+
     /// When the word was added to the bank
     var addedAt: Date
-    
+
     /// When the word was last shown in a notification or widget
     var lastShownAt: Date?
-    
+
     /// Remote ID from Supabase (for sync)
     var remoteId: UUID?
-    
+
     /// Whether this word has been synced to the server
     var isSynced: Bool
-    
+
     init(
         id: UUID = UUID(),
         term: String,
@@ -72,7 +72,7 @@ struct WordDTO: Codable, Identifiable, Sendable {
     let phonetic: String?
     let addedAt: Date
     let lastShownAt: Date?
-    
+
     enum CodingKeys: String, CodingKey {
         case id
         case userId = "user_id"
@@ -84,7 +84,7 @@ struct WordDTO: Codable, Identifiable, Sendable {
         case addedAt = "added_at"
         case lastShownAt = "last_shown_at"
     }
-    
+
     /// Convert DTO to SwiftData model
     func toModel() -> Word {
         Word(
@@ -118,4 +118,3 @@ extension Word {
         )
     }
 }
-

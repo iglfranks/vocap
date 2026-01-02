@@ -36,9 +36,28 @@ final class AuthViewModel: ObservableObject {
     // MARK: - Initialization
 
     init() {
-        // Observe auth service state changes
+        // Check for existing session on launch
         Task {
             await checkExistingSession()
+        }
+        
+        // Sync auth state from AuthService
+        syncAuthState()
+    }
+    
+    /// Sync auth state from AuthService to this ViewModel
+    private func syncAuthState() {
+        switch authService.authState {
+        case .authenticated(let user):
+            authState = .authenticated
+        case .magicLinkSent(let email):
+            self.email = email
+            authState = .magicLinkSent
+        case .unauthenticated, .unknown:
+            authState = .login
+        case .authenticating:
+            // Keep current state while authenticating
+            break
         }
     }
 
@@ -48,10 +67,7 @@ final class AuthViewModel: ObservableObject {
     func checkExistingSession() async {
         isLoading = true
         await authService.checkExistingSession()
-
-        if authService.authState.isAuthenticated {
-            authState = .authenticated
-        }
+        syncAuthState()
         isLoading = false
     }
 
@@ -64,7 +80,7 @@ final class AuthViewModel: ObservableObject {
 
         do {
             try await authService.sendMagicLink(to: email)
-            authState = .magicLinkSent
+            syncAuthState()
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -79,10 +95,10 @@ final class AuthViewModel: ObservableObject {
 
         do {
             try await authService.handleMagicLinkCallback(url: url)
-            authState = .authenticated
+            syncAuthState()
         } catch {
             errorMessage = error.localizedDescription
-            authState = .login
+            syncAuthState()
         }
 
         isLoading = false
@@ -94,7 +110,7 @@ final class AuthViewModel: ObservableObject {
 
         do {
             try await authService.signOut()
-            authState = .login
+            syncAuthState()
             email = ""
         } catch {
             errorMessage = error.localizedDescription
@@ -122,3 +138,4 @@ enum AuthViewState: Equatable {
     case magicLinkSent
     case authenticated
 }
+

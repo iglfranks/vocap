@@ -1,164 +1,83 @@
 import SwiftUI
 
-/// Login screen with magic link email input
+/// Login view with email input for magic link authentication
 struct LoginView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
-    @FocusState private var isEmailFocused: Bool
-
+    
     var body: some View {
-        GeometryReader { geometry in
-            ScrollView {
-                VStack(spacing: 0) {
-                    Spacer()
-                        .frame(minHeight: geometry.size.height * 0.15)
-
-                    // Logo and Title
-                    VStack(spacing: 16) {
-                        // App Icon
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 24)
-                                .fill(
-                                    LinearGradient(
-                                        colors: [Color.accentColor, Color.accentColor.opacity(0.7)],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
-                                .frame(width: 80, height: 80)
-                                .shadow(color: .accentColor.opacity(0.4), radius: 20, y: 10)
-
-                            Text("V")
-                                .font(.system(size: 40, weight: .bold, design: .rounded))
-                                .foregroundColor(.white)
-                        }
-
-                        VStack(spacing: 8) {
-                            Text("Vocap")
-                                .font(.system(size: 32, weight: .bold, design: .rounded))
-                                .foregroundColor(.primary)
-
-                            Text("Build your vocabulary, one word at a time")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                                .multilineTextAlignment(.center)
-                        }
-                    }
-                    .padding(.bottom, 48)
-
-                    // Email Input Card
-                    VStack(spacing: 24) {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Email")
-                                .font(.subheadline)
-                                .fontWeight(.medium)
-                                .foregroundColor(.secondary)
-
-                            HStack(spacing: 12) {
-                                Image(systemName: "envelope.fill")
-                                    .foregroundColor(.secondary)
-                                    .frame(width: 20)
-
-                                TextField("you@example.com", text: $authViewModel.email)
-                                    .textContentType(.emailAddress)
-                                    .keyboardType(.emailAddress)
-                                    .autocapitalization(.none)
-                                    .autocorrectionDisabled()
-                                    .focused($isEmailFocused)
-
-                                if !authViewModel.email.isEmpty {
-                                    Button {
-                                        authViewModel.email = ""
-                                    } label: {
-                                        Image(systemName: "xmark.circle.fill")
-                                            .foregroundColor(.secondary)
-                                    }
-                                }
-                            }
-                            .padding()
-                            .background(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .fill(Color(.systemGray6))
-                            )
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .stroke(
-                                        isEmailFocused ? Color.accentColor : Color.clear,
-                                        lineWidth: 2
-                                    )
-                            )
-                        }
-
-                        // Error Message
-                        if let error = authViewModel.errorMessage {
-                            HStack(spacing: 8) {
-                                Image(systemName: "exclamationmark.triangle.fill")
-                                    .foregroundColor(.red)
-                                Text(error)
-                                    .font(.caption)
-                                    .foregroundColor(.red)
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        }
-
-                        // Sign In Button
-                        Button {
-                            Task {
-                                await authViewModel.sendMagicLink()
-                            }
-                        } label: {
-                            HStack(spacing: 8) {
-                                if authViewModel.isLoading {
-                                    ProgressView()
-                                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                } else {
-                                    Text("Continue with Email")
-                                        .fontWeight(.semibold)
-                                    Image(systemName: "arrow.right")
-                                }
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 16)
-                            .background(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .fill(authViewModel.canSubmit ? Color.accentColor : Color.gray)
-                            )
-                            .foregroundColor(.white)
-                        }
-                        .disabled(!authViewModel.canSubmit)
-
-                        // Info Text
-                        Text("We'll send you a magic link to sign in.\nNo password needed!")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-                    }
-                    .padding(24)
-                    .background(
-                        RoundedRectangle(cornerRadius: 20)
-                            .fill(Color(.systemBackground))
-                            .shadow(color: .black.opacity(0.05), radius: 20, y: 10)
-                    )
-                    .padding(.horizontal, 24)
-
-                    Spacer()
-                        .frame(minHeight: geometry.size.height * 0.15)
-                }
-                .frame(minHeight: geometry.size.height)
+        VStack(spacing: 32) {
+            Spacer()
+            
+            // App Icon/Title
+            VStack(spacing: 16) {
+                Image(systemName: "book.closed.fill")
+                    .font(.system(size: 64))
+                    .foregroundColor(.accentColor)
+                
+                Text("Vocap")
+                    .font(.system(size: 36, weight: .bold, design: .rounded))
+                
+                Text("Build your vocabulary")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
             }
-        }
-        .background(
-            LinearGradient(
-                colors: [
-                    Color(.systemBackground),
-                    Color.accentColor.opacity(0.05),
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
-        )
-        .onTapGesture {
-            isEmailFocused = false
+            
+            Spacer()
+            
+            // Login Form
+            VStack(spacing: 20) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Email")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    
+                    TextField("your@email.com", text: $authViewModel.email)
+                        .textFieldStyle(.roundedBorder)
+                        .autocapitalization(.none)
+                        .autocorrectionDisabled()
+                        .keyboardType(.emailAddress)
+                        .textContentType(.emailAddress)
+                }
+                
+                Button {
+                    Task {
+                        await authViewModel.sendMagicLink()
+                    }
+                } label: {
+                    HStack {
+                        if authViewModel.isLoading {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        } else {
+                            Text("Send Magic Link")
+                                .fontWeight(.semibold)
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(authViewModel.canSubmit ? Color.accentColor : Color.gray)
+                    .foregroundColor(.white)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+                .disabled(!authViewModel.canSubmit)
+                
+                if let error = authViewModel.errorMessage {
+                    Text(error)
+                        .font(.caption)
+                        .foregroundColor(.red)
+                        .multilineTextAlignment(.center)
+                }
+            }
+            .padding(.horizontal, 32)
+            
+            Spacer()
+            
+            // Footer
+            Text("We'll send you a magic link to sign in")
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.bottom, 32)
         }
     }
 }
@@ -169,3 +88,4 @@ struct LoginView: View {
     LoginView()
         .environmentObject(AuthViewModel())
 }
+

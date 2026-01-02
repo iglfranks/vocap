@@ -1,21 +1,14 @@
 import Foundation
 import Supabase
+import SwiftUI
 
-/// Handles authentication via Supabase magic link
+/// Service for handling Supabase authentication
 @MainActor
 final class AuthService: ObservableObject {
     static let shared = AuthService()
     
-    /// Current authentication state
     @Published private(set) var authState: AuthState = .unknown
-    
-    /// Current authenticated user
     @Published private(set) var currentUser: User?
-    
-    /// Error message for display
-    @Published var errorMessage: String?
-    
-    private let keychain = KeychainHelper.shared
     
     private init() {
         Task {
@@ -23,64 +16,115 @@ final class AuthService: ObservableObject {
         }
     }
     
-    // MARK: - Magic Link Authentication
+    /// Check if there's an existing session on app launch
+    func checkExistingSession() async {
+        do {
+            let session = try await supabase.auth.session
+            
+            await handleSession(session)
+        } catch {
+            print("Error checking session: \(error)")
+            authState = .unauthenticated
+        }
+    }
     
-    /// Send a magic link to the user's email
+    /// Send magic link to email
     func sendMagicLink(to email: String) async throws {
         authState = .authenticating
-        errorMessage = nil
         
         do {
             try await supabase.auth.signInWithOTP(
                 email: email,
-                redirectTo: Constants.Supabase.redirectURL
+                redirectTo: URL(string: "vocap://auth/callback")
             )
             
             authState = .magicLinkSent(email: email)
         } catch {
             authState = .unauthenticated
-            errorMessage = error.localizedDescription
-            throw AuthError.magicLinkFailed(error.localizedDescription)
+            throw AuthError.sendMagicLinkFailed(error.localizedDescription)
         }
     }
     
-    /// Handle the magic link callback URL
+    /// Handle magic link callback URL
     func handleMagicLinkCallback(url: URL) async throws {
         authState = .authenticating
-        errorMessage = nil
         
         do {
-            // Extract the token from the URL
-            let session = try await supabase.auth.session(from: url)
-            try await handleSession(session)
+            // Extract token from URL
+            guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+                  let fragment = components.fragment else {
+                throw AuthError.invalidCallbackURL
+            }
+            
+            // Parse the fragment to get access_token
+            let params = fragment.components(separatedBy: "&")
+            var accessToken: String?
+            var refreshToken: String?
+            
+            for param in params {
+                let parts = param.components(separatedBy: "=")
+                if parts.count == 2 {
+                    if parts[0] == "access_token" {
+                        accessToken = parts[1]
+                    } else if parts[0] == "refresh_token" {
+                        refreshToken = parts[1]
+                    }
+                }
+            }
+            
+            guard let token = accessToken else {
+                throw AuthError.invalidCallbackURL
+            }
+            
+            // Set the session with the token
+            let session = try await supabase.auth.setSession(
+                accessToken: token,
+                refreshToken: refreshToken ?? ""
+            )
+            
+            await handleSession(session)
+            
         } catch {
             authState = .unauthenticated
-            errorMessage = error.localizedDescription
             throw AuthError.callbackFailed(error.localizedDescription)
         }
     }
     
-    /// Check for existing valid session on app launch
-    func checkExistingSession() async {
-        // First check keychain for stored tokens
-        if keychain.hasValidSession(),
-           let accessToken = keychain.getAccessToken() {
-            do {
-                // Try to restore session with Supabase
-                let session = try await supabase.auth.session
-                try await handleSession(session)
-                return
-            } catch {
-                // Session invalid, clear and continue to unauthenticated
-                try? keychain.clearSession()
-            }
-        }
-        
-        // Check if Supabase has a valid session
+    /// Handle a valid session
+    private func handleSession(_ session: Session) async {
         do {
-            let session = try await supabase.auth.session
-            try await handleSession(session)
+            // Fetch user profile from Supabase
+            let user = session.user
+            
+            // Convert Supabase user to our User model
+            // Extract display_name from userMetadata if available
+            let displayName: String? = {
+                guard let metadata = user.userMetadata["display_name"] else {
+                    return nil
+                }
+                // Try to extract string value from AnyJSON
+                if case .string(let value) = metadata {
+                    return value
+                }
+                return nil
+            }()
+            
+            let appUser = User(
+                id: UUID(uuidString: user.id.uuidString) ?? UUID(),
+                email: user.email ?? "",
+                createdAt: user.createdAt ?? Date(),
+                displayName: displayName
+            )
+            
+            currentUser = appUser
+            authState = .authenticated(appUser)
+            
+            // Store tokens in keychain
+            try? KeychainHelper.shared.save(session.accessToken, forKey: KeychainHelper.Keys.accessToken)
+            try? KeychainHelper.shared.save(session.refreshToken, forKey: KeychainHelper.Keys.refreshToken)
+            
         } catch {
+            print("Error handling session: \(error)")
             authState = .unauthenticated
         }
     }
@@ -89,81 +133,37 @@ final class AuthService: ObservableObject {
     func signOut() async throws {
         do {
             try await supabase.auth.signOut()
-            try keychain.clearSession()
-            AppGroup.remove(forKey: AppGroup.Keys.currentUser)
+            
+            // Clear keychain
+            try? KeychainHelper.shared.delete(forKey: KeychainHelper.Keys.accessToken)
+            try? KeychainHelper.shared.delete(forKey: KeychainHelper.Keys.refreshToken)
             
             currentUser = nil
             authState = .unauthenticated
         } catch {
-            errorMessage = error.localizedDescription
             throw AuthError.signOutFailed(error.localizedDescription)
         }
-    }
-    
-    /// Refresh the session if needed
-    func refreshSessionIfNeeded() async throws {
-        guard let expiryDate = keychain.getSessionExpiry() else {
-            throw AuthError.noSession
-        }
-        
-        // Refresh if session expires within 5 minutes
-        let refreshThreshold = Date().addingTimeInterval(5 * 60)
-        
-        if expiryDate < refreshThreshold {
-            let session = try await supabase.auth.refreshSession()
-            try await handleSession(session)
-        }
-    }
-    
-    // MARK: - Private Helpers
-    
-    private func handleSession(_ session: Auth.Session) async throws {
-        // Convert expiresAt from TimeInterval to Date
-        let expiresAtDate = Date(timeIntervalSince1970: session.expiresAt)
-        
-        // Store tokens securely
-        try keychain.saveSession(
-            accessToken: session.accessToken,
-            refreshToken: session.refreshToken,
-            expiresAt: expiresAtDate
-        )
-        
-        // Create user object from Supabase user
-        let user = User(
-            id: session.user.id,
-            email: session.user.email ?? "",
-            createdAt: session.user.createdAt
-        )
-        
-        // Store user for widget access
-        try? AppGroup.save(user, forKey: AppGroup.Keys.currentUser)
-        
-        currentUser = user
-        authState = .authenticated(user)
     }
 }
 
 // MARK: - Errors
 
 enum AuthError: Error, LocalizedError {
-    case magicLinkFailed(String)
+    case sendMagicLinkFailed(String)
+    case invalidCallbackURL
     case callbackFailed(String)
     case signOutFailed(String)
-    case noSession
-    case invalidSession
     
     var errorDescription: String? {
         switch self {
-        case .magicLinkFailed(let message):
+        case .sendMagicLinkFailed(let message):
             return "Failed to send magic link: \(message)"
+        case .invalidCallbackURL:
+            return "Invalid callback URL"
         case .callbackFailed(let message):
-            return "Failed to authenticate: \(message)"
+            return "Failed to complete sign in: \(message)"
         case .signOutFailed(let message):
             return "Failed to sign out: \(message)"
-        case .noSession:
-            return "No active session"
-        case .invalidSession:
-            return "Session is invalid or expired"
         }
     }
 }

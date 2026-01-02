@@ -4,7 +4,7 @@ import SwiftUI
 struct MainTabView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
     @State private var selectedTab = 0
-    
+
     var body: some View {
         TabView(selection: $selectedTab) {
             // Word Bank Tab
@@ -13,7 +13,7 @@ struct MainTabView: View {
                     Label("Word Bank", systemImage: "books.vertical.fill")
                 }
                 .tag(0)
-            
+
             // Settings Tab
             SettingsView()
                 .tabItem {
@@ -31,4 +31,3 @@ struct MainTabView: View {
     MainTabView()
         .environmentObject(AuthViewModel())
 }
-
