@@ -19,13 +19,13 @@ struct LoginView: View {
                             RoundedRectangle(cornerRadius: 24)
                                 .fill(
                                     LinearGradient(
-                                        colors: [Color.accent, Color.accent.opacity(0.7)],
+                                        colors: [Color.accentColor, Color.accentColor.opacity(0.7)],
                                         startPoint: .topLeading,
                                         endPoint: .bottomTrailing
                                     )
                                 )
                                 .frame(width: 80, height: 80)
-                                .shadow(color: .accent.opacity(0.4), radius: 20, y: 10)
+                                .shadow(color: .accentColor.opacity(0.4), radius: 20, y: 10)
 
                             Text("V")
                                 .font(.system(size: 40, weight: .bold, design: .rounded))
@@ -82,7 +82,7 @@ struct LoginView: View {
                             .overlay(
                                 RoundedRectangle(cornerRadius: 12)
                                     .stroke(
-                                        isEmailFocused ? Color.accent : Color.clear,
+                                        isEmailFocused ? Color.accentColor : Color.clear,
                                         lineWidth: 2
                                     )
                             )
@@ -120,7 +120,7 @@ struct LoginView: View {
                             .padding(.vertical, 16)
                             .background(
                                 RoundedRectangle(cornerRadius: 12)
-                                    .fill(authViewModel.canSubmit ? Color.accent : Color.gray)
+                                    .fill(authViewModel.canSubmit ? Color.accentColor : Color.gray)
                             )
                             .foregroundColor(.white)
                         }
@@ -150,7 +150,7 @@ struct LoginView: View {
             LinearGradient(
                 colors: [
                     Color(.systemBackground),
-                    Color.accent.opacity(0.05),
+                    Color.accentColor.opacity(0.05),
                 ],
                 startPoint: .top,
                 endPoint: .bottom
@@ -161,12 +161,6 @@ struct LoginView: View {
             isEmailFocused = false
         }
     }
-}
-
-// MARK: - Accent Color Extension
-
-extension Color {
-    static let accent = Color(red: 0.4, green: 0.3, blue: 0.9)  // Purple-ish accent
 }
 
 // MARK: - Preview

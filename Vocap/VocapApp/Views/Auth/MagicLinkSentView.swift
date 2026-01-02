@@ -28,7 +28,7 @@ struct MagicLinkSentView: View {
 
                 Image(systemName: "envelope.badge.fill")
                     .font(.system(size: 48))
-                    .foregroundStyle(Color.green, Color.accent)
+                    .foregroundStyle(Color.green, Color.accentColor)
             }
             .onAppear {
                 animateCheckmark = true
@@ -47,7 +47,7 @@ struct MagicLinkSentView: View {
                 Text(authViewModel.email)
                     .font(.body)
                     .fontWeight(.semibold)
-                    .foregroundColor(.accent)
+                    .foregroundColor(.accentColor)
             }
 
             // Instructions
@@ -79,7 +79,7 @@ struct MagicLinkSentView: View {
                     }
                     .font(.subheadline)
                     .fontWeight(.medium)
-                    .foregroundColor(.accent)
+                    .foregroundColor(.accentColor)
                     .disabled(authViewModel.isLoading)
 
                     Button("Try different email") {
@@ -109,7 +109,7 @@ struct InstructionRow: View {
                 .fontWeight(.bold)
                 .foregroundColor(.white)
                 .frame(width: 24, height: 24)
-                .background(Circle().fill(Color.accent))
+                .background(Circle().fill(Color.accentColor))
 
             Text(text)
                 .font(.subheadline)

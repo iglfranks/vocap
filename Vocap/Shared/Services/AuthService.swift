@@ -117,15 +117,18 @@ final class AuthService: ObservableObject {
     
     // MARK: - Private Helpers
     
-    private func handleSession(_ session: Session) async throws {
+    private func handleSession(_ session: Auth.Session) async throws {
+        // Convert expiresAt from TimeInterval to Date
+        let expiresAtDate = Date(timeIntervalSince1970: session.expiresAt)
+        
         // Store tokens securely
         try keychain.saveSession(
             accessToken: session.accessToken,
             refreshToken: session.refreshToken,
-            expiresAt: session.expiresAt ?? Date().addingTimeInterval(3600)
+            expiresAt: expiresAtDate
         )
         
-        // Create user object
+        // Create user object from Supabase user
         let user = User(
             id: session.user.id,
             email: session.user.email ?? "",

@@ -3,20 +3,20 @@ import SwiftUI
 /// Root view that switches between authentication and main app
 struct ContentView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
-    
+
     var body: some View {
         Group {
             switch authViewModel.authState {
             case .login:
                 LoginView()
                     .transition(.opacity.combined(with: .move(edge: .leading)))
-                
+
             case .magicLinkSent:
                 MagicLinkSentView()
                     .transition(.opacity.combined(with: .move(edge: .trailing)))
-                
+
             case .authenticated:
-                HomeView()
+                MainTabView()
                     .transition(.opacity.combined(with: .scale(scale: 0.95)))
             }
         }
@@ -26,17 +26,7 @@ struct ContentView: View {
 
 // MARK: - Preview
 
-#Preview("Login") {
+#Preview {
     ContentView()
         .environmentObject(AuthViewModel())
 }
-
-#Preview("Authenticated") {
-    ContentView()
-        .environmentObject({
-            let vm = AuthViewModel()
-            vm.authState = .authenticated
-            return vm
-        }())
-}
-

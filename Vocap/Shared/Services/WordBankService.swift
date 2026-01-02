@@ -1,5 +1,6 @@
 import Foundation
 import Supabase
+import WidgetKit
 
 /// Service for managing the user's word bank (CRUD operations with Supabase)
 ///
@@ -229,10 +230,13 @@ final class WordBankService: ObservableObject {
 
     // MARK: - Widget Support
 
-    /// Update the words stored for widget access
+    /// Update the words stored for widget access and reload widget
     private func updateWidgetWords() throws {
         let widgetWords = getLeastRecentlyShownWords(count: 24)
         try AppGroup.save(widgetWords, forKey: AppGroup.Keys.widgetWords)
+
+        // Reload widget timeline to show updated words
+        WidgetCenter.shared.reloadAllTimelines()
     }
 
     /// Load words from App Group (for widget use)

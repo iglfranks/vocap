@@ -1,7 +1,7 @@
 import Foundation
 
 /// Represents the authenticated user profile
-struct User: Codable, Identifiable, Sendable {
+struct User: Codable, Identifiable, Sendable, Equatable {
     let id: UUID
     let email: String
     let createdAt: Date
@@ -38,22 +38,5 @@ enum AuthState: Equatable {
     }
 }
 
-/// Session data from Supabase
-struct Session: Codable, Sendable {
-    let accessToken: String
-    let refreshToken: String
-    let expiresAt: Date
-    let user: User
-    
-    enum CodingKeys: String, CodingKey {
-        case accessToken = "access_token"
-        case refreshToken = "refresh_token"
-        case expiresAt = "expires_at"
-        case user
-    }
-    
-    var isExpired: Bool {
-        Date() >= expiresAt
-    }
-}
+// Note: We use Supabase's Auth.Session type directly instead of a custom Session struct
 

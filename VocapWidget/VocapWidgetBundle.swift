@@ -2,7 +2,7 @@
 //  VocapWidgetBundle.swift
 //  VocapWidget
 //
-//  Created by Isaac Franks on 02/01/2026.
+//  Widget bundle for Vocap
 //
 
 import WidgetKit
@@ -12,6 +12,5 @@ import SwiftUI
 struct VocapWidgetBundle: WidgetBundle {
     var body: some Widget {
         VocapWidget()
-        VocapWidgetControl()
     }
 }
