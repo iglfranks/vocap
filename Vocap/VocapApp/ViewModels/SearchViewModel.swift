@@ -5,7 +5,7 @@ import SwiftUI
 @MainActor
 final class SearchViewModel: ObservableObject {
     // MARK: - Published State
-    
+
     @Published var searchText = ""
     @Published var searchResult: DictionaryResult?
     @Published var isSearching = false
@@ -14,66 +14,70 @@ final class SearchViewModel: ObservableObject {
     @Published var successMessage: String?
     @Published var selectedPartOfSpeech: String?
     @Published var selectedDefinition: DictionaryResult.Definition?
-    
+
     // MARK: - Services
-    
+
     private let dictionaryService = DictionaryService.shared
-    private let wordBankService = WordBankService.shared
-    
+    private let repository = WordRepository.shared
+
     // MARK: - Computed Properties
-    
+
     var canSearch: Bool {
         !searchText.trimmingCharacters(in: .whitespaces).isEmpty && !isSearching
     }
-    
+
     var hasResult: Bool {
         searchResult != nil
     }
-    
+
     // MARK: - Actions
-    
+
     /// Search for a word definition
     func search() async {
         guard canSearch else { return }
-        
+
         isSearching = true
         errorMessage = nil
         successMessage = nil
         searchResult = nil
-        
+
         do {
-            let result = try await dictionaryService.lookupWord(searchText.trimmingCharacters(in: .whitespaces))
+            let result = try await dictionaryService.lookupWord(
+                searchText.trimmingCharacters(in: .whitespaces))
             searchResult = result
-            
+
             // Auto-select first part of speech and first definition
             if let firstPartOfSpeech = result.allDefinitions.first?.partOfSpeech {
                 selectedPartOfSpeech = firstPartOfSpeech
-                selectedDefinition = result.allDefinitions.first { $0.partOfSpeech == firstPartOfSpeech }
+                selectedDefinition = result.allDefinitions.first {
+                    $0.partOfSpeech == firstPartOfSpeech
+                }
             }
         } catch let error as DictionaryError {
             errorMessage = error.localizedDescription
         } catch {
             errorMessage = "Failed to search: \(error.localizedDescription)"
         }
-        
+
         isSearching = false
     }
-    
+
     /// Get unique parts of speech from search result
     var partsOfSpeech: [String] {
         guard let result = searchResult else { return [] }
         return Array(Set(result.allDefinitions.map { $0.partOfSpeech })).sorted()
     }
-    
+
     /// Get definitions for selected part of speech
     var definitionsForSelectedPartOfSpeech: [DictionaryResult.Definition] {
         guard let result = searchResult,
-              let selectedPOS = selectedPartOfSpeech else {
+            let selectedPOS = selectedPartOfSpeech
+        else {
             return []
         }
         return result.allDefinitions.filter { $0.partOfSpeech == selectedPOS }
     }
-    
+
     /// Select a part of speech
     func selectPartOfSpeech(_ pos: String) {
         selectedPartOfSpeech = pos
@@ -83,20 +87,21 @@ final class SearchViewModel: ObservableObject {
             selectedDefinition = definitions.first
         }
     }
-    
+
     /// Select a specific definition
     func selectDefinition(_ definition: DictionaryResult.Definition) {
         selectedDefinition = definition
     }
-    
+
     /// Add the selected definition to the word bank
     func addToWordBank() async {
         guard let result = searchResult,
-              let selectedDef = selectedDefinition else { return }
-        
+            let selectedDef = selectedDefinition
+        else { return }
+
         isAdding = true
         errorMessage = nil
-        
+
         do {
             // Create a word from the selected definition
             let word = Word(
@@ -106,10 +111,10 @@ final class SearchViewModel: ObservableObject {
                 example: selectedDef.example,
                 phonetic: result.phonetic
             )
-            
-            _ = try await wordBankService.addWord(word)
+
+            try repository.save(word)
             successMessage = "'\(result.word)' (\(selectedDef.partOfSpeech)) added to your word bank!"
-            
+
             // Clear search after successful add
             searchText = ""
             searchResult = nil
@@ -118,10 +123,10 @@ final class SearchViewModel: ObservableObject {
         } catch {
             errorMessage = error.localizedDescription
         }
-        
+
         isAdding = false
     }
-    
+
     /// Clear the search
     func clearSearch() {
         searchText = ""
@@ -131,11 +136,10 @@ final class SearchViewModel: ObservableObject {
         errorMessage = nil
         successMessage = nil
     }
-    
+
     /// Clear messages
     func clearMessages() {
         errorMessage = nil
         successMessage = nil
     }
 }
-

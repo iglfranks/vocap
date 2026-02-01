@@ -4,49 +4,58 @@ import SwiftData
 /// Represents the user's notification preferences
 @Model
 final class NotificationSchedule {
-    /// Unique identifier
-    @Attribute(.unique) var id: UUID
-
     /// Whether notifications are enabled
     var isEnabled: Bool
-
+    
     /// Hours between notifications (e.g., 4 = every 4 hours)
     var frequencyHours: Int
-
+    
     /// Earliest hour to send notifications (0-23)
     var startHour: Int
-
+    
     /// Latest hour to send notifications (0-23)
     var endHour: Int
-
+    
     /// Days of the week to send notifications (0 = Sunday, 6 = Saturday)
     /// If empty, notifications are sent every day
-    var activeDays: [Int]
+    /// Stored as JSON string because SwiftData has issues with primitive arrays
+    private var activeDaysData: String = "[0,1,2,3,4,5,6]"
 
-    /// Remote ID from Supabase (for sync)
-    var remoteUserId: UUID?
-
-    /// Whether this schedule has been synced to the server
-    var isSynced: Bool
+    /// Computed property to access days as [Int]
+    var activeDays: [Int] {
+        get {
+            guard let data = activeDaysData.data(using: .utf8),
+                  let days = try? JSONDecoder().decode([Int].self, from: data) else {
+                return []
+            }
+            return days
+        }
+        set {
+            if let data = try? JSONEncoder().encode(newValue),
+               let string = String(data: data, encoding: .utf8) {
+                activeDaysData = string
+            }
+        }
+    }
 
     init(
-        id: UUID = UUID(),
         isEnabled: Bool = true,
         frequencyHours: Int = 4,
         startHour: Int = 9,
         endHour: Int = 21,
-        activeDays: [Int] = [0, 1, 2, 3, 4, 5, 6],
-        remoteUserId: UUID? = nil,
-        isSynced: Bool = false
+        activeDays: [Int] = [0, 1, 2, 3, 4, 5, 6]
     ) {
-        self.id = id
         self.isEnabled = isEnabled
         self.frequencyHours = frequencyHours
         self.startHour = startHour
         self.endHour = endHour
-        self.activeDays = activeDays
-        self.remoteUserId = remoteUserId
-        self.isSynced = isSynced
+        // Encode activeDays as JSON string for SwiftData compatibility
+        if let data = try? JSONEncoder().encode(activeDays),
+           let string = String(data: data, encoding: .utf8) {
+            self.activeDaysData = string
+        } else {
+            self.activeDaysData = "[]"
+        }
     }
 
     /// Get the next notification times for today
@@ -68,51 +77,5 @@ final class NotificationSchedule {
     /// Check if notifications should be sent on a given day
     func shouldNotify(on weekday: Int) -> Bool {
         activeDays.isEmpty || activeDays.contains(weekday)
-    }
-}
-
-// MARK: - DTO for API/Supabase communication
-
-/// Data transfer object for NotificationSchedule
-struct NotificationScheduleDTO: Codable, Sendable {
-    let userId: UUID
-    let enabled: Bool
-    let frequencyHours: Int
-    let startHour: Int
-    let endHour: Int
-    let activeDays: [Int]?
-
-    enum CodingKeys: String, CodingKey {
-        case userId = "user_id"
-        case enabled
-        case frequencyHours = "frequency_hours"
-        case startHour = "start_hour"
-        case endHour = "end_hour"
-        case activeDays = "active_days"
-    }
-
-    func toModel() -> NotificationSchedule {
-        NotificationSchedule(
-            isEnabled: enabled,
-            frequencyHours: frequencyHours,
-            startHour: startHour,
-            endHour: endHour,
-            activeDays: activeDays ?? [0, 1, 2, 3, 4, 5, 6],
-            remoteUserId: userId,
-            isSynced: true
-        )
-    }
-}
-
-extension NotificationSchedule {
-    func toDTO(userId: UUID) -> NotificationScheduleDTO {
-        NotificationScheduleDTO(
-            userId: userId,
-            enabled: isEnabled,
-            frequencyHours: frequencyHours,
-            startHour: startHour,
-            endHour: endHour,
-            activeDays: activeDays
-        )
     }
 }

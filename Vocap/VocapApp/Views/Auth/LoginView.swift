@@ -1,66 +1,68 @@
+import AuthenticationServices
 import SwiftUI
 
-/// Login view with email input for magic link authentication
+/// Login view with Sign in with Apple authentication
 struct LoginView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
-    
+
     var body: some View {
         VStack(spacing: 32) {
             Spacer()
-            
+
             // App Icon/Title
             VStack(spacing: 16) {
                 Image(systemName: "book.closed.fill")
                     .font(.system(size: 64))
                     .foregroundColor(.accentColor)
-                
+
                 Text("Vocap")
                     .font(.system(size: 36, weight: .bold, design: .rounded))
-                
+
                 Text("Build your vocabulary")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
             }
-            
+
             Spacer()
-            
-            // Login Form
+
+            // Sign in options
             VStack(spacing: 20) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Email")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                    
-                    TextField("your@email.com", text: $authViewModel.email)
-                        .textFieldStyle(.roundedBorder)
-                        .autocapitalization(.none)
-                        .autocorrectionDisabled()
-                        .keyboardType(.emailAddress)
-                        .textContentType(.emailAddress)
+                // Sign in with Apple button
+                SignInWithAppleButton(.signIn) { request in
+                    request.requestedScopes = [.email, .fullName]
+                } onCompletion: { result in
+                    Task {
+                        await authViewModel.handleSignInWithApple(result: result)
+                    }
                 }
-                
+                .signInWithAppleButtonStyle(.black)
+                .frame(height: 50)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+
+                // Alternative: Continue with iCloud only
                 Button {
                     Task {
-                        await authViewModel.sendMagicLink()
+                        await authViewModel.checkiCloudStatus()
                     }
                 } label: {
                     HStack {
                         if authViewModel.isLoading {
                             ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                .progressViewStyle(CircularProgressViewStyle(tint: .primary))
                         } else {
-                            Text("Send Magic Link")
-                                .fontWeight(.semibold)
+                            Image(systemName: "icloud")
+                            Text("Continue with iCloud")
                         }
                     }
+                    .fontWeight(.medium)
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(authViewModel.canSubmit ? Color.accentColor : Color.gray)
-                    .foregroundColor(.white)
+                    .background(Color(.systemGray5))
+                    .foregroundColor(.primary)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
-                .disabled(!authViewModel.canSubmit)
-                
+                .disabled(authViewModel.isLoading)
+
                 if let error = authViewModel.errorMessage {
                     Text(error)
                         .font(.caption)
@@ -69,11 +71,11 @@ struct LoginView: View {
                 }
             }
             .padding(.horizontal, 32)
-            
+
             Spacer()
-            
+
             // Footer
-            Text("We'll send you a magic link to sign in")
+            Text("Your vocabulary syncs automatically via iCloud")
                 .font(.caption)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
@@ -88,4 +90,3 @@ struct LoginView: View {
     LoginView()
         .environmentObject(AuthViewModel())
 }
-

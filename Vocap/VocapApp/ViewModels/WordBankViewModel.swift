@@ -5,63 +5,63 @@ import SwiftUI
 @MainActor
 final class WordBankViewModel: ObservableObject {
     // MARK: - Published State
-    
-    @Published var words: [WordDTO] = []
+
+    @Published var words: [Word] = []
     @Published var isLoading = false
     @Published var errorMessage: String?
     @Published var searchText = ""
-    
-    // MARK: - Services
-    
-    private let wordBankService = WordBankService.shared
-    
+
+    // MARK: - Repository
+
+    private let repository = WordRepository.shared
+
     // MARK: - Computed Properties
-    
-    var filteredWords: [WordDTO] {
+
+    var filteredWords: [Word] {
         if searchText.isEmpty {
             return words
         }
         return words.filter { word in
-            word.term.localizedCaseInsensitiveContains(searchText) ||
-            word.definition.localizedCaseInsensitiveContains(searchText)
+            word.term.localizedCaseInsensitiveContains(searchText)
+                || word.definition.localizedCaseInsensitiveContains(searchText)
         }
     }
-    
+
     var wordCount: Int {
         words.count
     }
-    
+
     var isEmpty: Bool {
         words.isEmpty
     }
-    
+
     // MARK: - Actions
-    
-    /// Fetch all words from the server
+
+    /// Fetch all words from storage
     func fetchWords() async {
         isLoading = true
         errorMessage = nil
-        
+
         do {
-            try await wordBankService.fetchWords()
-            words = wordBankService.words
+            try await repository.fetchAll()
+            words = repository.words
         } catch {
             errorMessage = error.localizedDescription
         }
-        
+
         isLoading = false
     }
-    
+
     /// Delete a word
-    func deleteWord(_ word: WordDTO) async {
+    func deleteWord(_ word: Word) async {
         do {
-            try await wordBankService.deleteWord(id: word.id)
+            try repository.delete(word)
             words.removeAll { $0.id == word.id }
         } catch {
             errorMessage = error.localizedDescription
         }
     }
-    
+
     /// Delete words at index set (for swipe to delete)
     func deleteWords(at offsets: IndexSet) async {
         for index in offsets {
@@ -69,10 +69,9 @@ final class WordBankViewModel: ObservableObject {
             await deleteWord(word)
         }
     }
-    
+
     /// Clear error message
     func clearError() {
         errorMessage = nil
     }
 }
-

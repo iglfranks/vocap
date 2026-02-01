@@ -2,11 +2,11 @@ import SwiftUI
 
 /// Detailed view of a single word
 struct WordDetailView: View {
-    let word: WordDTO
+    let word: Word
     @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel = WordBankViewModel()
     @State private var showingDeleteConfirmation = false
-    
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
@@ -14,14 +14,14 @@ struct WordDetailView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text(word.term.capitalized)
                         .font(.system(size: 34, weight: .bold, design: .rounded))
-                    
+
                     HStack(spacing: 12) {
                         if let partOfSpeech = word.partOfSpeech {
                             Label(partOfSpeech, systemImage: "text.book.closed")
                                 .font(.subheadline)
                                 .foregroundColor(.accentColor)
                         }
-                        
+
                         if let phonetic = word.phonetic, !phonetic.isEmpty {
                             Text(phonetic)
                                 .font(.subheadline)
@@ -35,13 +35,13 @@ struct WordDetailView: View {
                     RoundedRectangle(cornerRadius: 16)
                         .fill(Color.accentColor.opacity(0.1))
                 )
-                
+
                 // Definition
                 VStack(alignment: .leading, spacing: 8) {
                     Label("Definition", systemImage: "text.quote")
                         .font(.headline)
                         .foregroundColor(.primary)
-                    
+
                     Text(word.definition)
                         .font(.body)
                         .foregroundColor(.primary)
@@ -53,14 +53,14 @@ struct WordDetailView: View {
                     RoundedRectangle(cornerRadius: 12)
                         .fill(Color(.systemGray6))
                 )
-                
+
                 // Example (if available)
                 if let example = word.example, !example.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
                         Label("Example", systemImage: "text.bubble")
                             .font(.headline)
                             .foregroundColor(.primary)
-                        
+
                         Text("\"\(example)\"")
                             .font(.body)
                             .italic()
@@ -74,13 +74,13 @@ struct WordDetailView: View {
                             .fill(Color(.systemGray6))
                     )
                 }
-                
+
                 // Metadata
                 VStack(alignment: .leading, spacing: 12) {
                     Label("Info", systemImage: "info.circle")
                         .font(.headline)
                         .foregroundColor(.primary)
-                    
+
                     HStack {
                         Text("Added")
                             .foregroundColor(.secondary)
@@ -89,7 +89,7 @@ struct WordDetailView: View {
                             .foregroundColor(.primary)
                     }
                     .font(.subheadline)
-                    
+
                     if let lastShown = word.lastShownAt {
                         HStack {
                             Text("Last reviewed")
@@ -107,7 +107,7 @@ struct WordDetailView: View {
                     RoundedRectangle(cornerRadius: 12)
                         .fill(Color(.systemGray6))
                 )
-                
+
                 Spacer()
             }
             .padding()
@@ -124,7 +124,7 @@ struct WordDetailView: View {
             }
         }
         .alert("Delete Word", isPresented: $showingDeleteConfirmation) {
-            Button("Cancel", role: .cancel) { }
+            Button("Cancel", role: .cancel) {}
             Button("Delete", role: .destructive) {
                 Task {
                     await viewModel.deleteWord(word)
@@ -134,9 +134,6 @@ struct WordDetailView: View {
         } message: {
             Text("Are you sure you want to delete '\(word.term)'? This cannot be undone.")
         }
-        .task {
-            await viewModel.fetchWords()
-        }
     }
 }
 
@@ -144,17 +141,16 @@ struct WordDetailView: View {
 
 #Preview {
     NavigationStack {
-        WordDetailView(word: WordDTO(
-            id: UUID(),
-            userId: UUID(),
-            term: "serendipity",
-            definition: "The occurrence and development of events by chance in a happy or beneficial way.",
-            partOfSpeech: "noun",
-            example: "A fortunate stroke of serendipity brought them together.",
-            phonetic: "/ˌserənˈdipitē/",
-            addedAt: Date().addingTimeInterval(-86400 * 3),
-            lastShownAt: Date().addingTimeInterval(-3600)
-        ))
+        WordDetailView(
+            word: Word(
+                term: "serendipity",
+                definition:
+                    "The occurrence and development of events by chance in a happy or beneficial way.",
+                partOfSpeech: "noun",
+                example: "A fortunate stroke of serendipity brought them together.",
+                phonetic: "/ˌserənˈdipitē/",
+                addedAt: Date().addingTimeInterval(-86400 * 3),
+                lastShownAt: Date().addingTimeInterval(-3600)
+            ))
     }
 }
-

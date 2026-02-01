@@ -8,36 +8,31 @@
 import SwiftUI
 import WidgetKit
 
-// MARK: - Widget Word Model (matches WordDTO from main app)
+// MARK: - Widget Word Model (matches WordSnapshot from main app)
 
 struct WidgetWord: Codable, Identifiable {
-    let id: UUID
+    let id: String
     let term: String
     let definition: String
     let partOfSpeech: String?
+    let example: String?
     let phonetic: String?
 
-    enum CodingKeys: String, CodingKey {
-        case id
-        case term
-        case definition
-        case partOfSpeech = "part_of_speech"
-        case phonetic
-    }
-
     static let placeholder = WidgetWord(
-        id: UUID(),
+        id: "placeholder",
         term: "serendipity",
         definition: "The occurrence of events by chance in a happy way",
         partOfSpeech: "noun",
+        example: nil,
         phonetic: "/ˌserənˈdipitē/"
     )
 
     static let empty = WidgetWord(
-        id: UUID(),
+        id: "empty",
         term: "Add words",
         definition: "Open Vocap to add words to your vocabulary",
         partOfSpeech: nil,
+        example: nil,
         phonetic: nil
     )
 }
@@ -124,34 +119,9 @@ struct WordWidgetProvider: TimelineProvider {
         decoder.dateDecodingStrategy = .iso8601
 
         do {
-            // Decode as WordDTO (which has all WidgetWord fields plus extras)
-            struct WordDTO: Codable {
-                let id: UUID
-                let term: String
-                let definition: String
-                let partOfSpeech: String?
-                let phonetic: String?
-
-                enum CodingKeys: String, CodingKey {
-                    case id
-                    case term
-                    case definition
-                    case partOfSpeech = "part_of_speech"
-                    case phonetic
-                }
-            }
-
-            let dtos = try decoder.decode([WordDTO].self, from: data)
-            // Convert to WidgetWord (ignoring extra fields)
-            return dtos.map { dto in
-                WidgetWord(
-                    id: dto.id,
-                    term: dto.term,
-                    definition: dto.definition,
-                    partOfSpeech: dto.partOfSpeech,
-                    phonetic: dto.phonetic
-                )
-            }
+            // Decode WordSnapshot from main app (uses camelCase keys)
+            let words = try decoder.decode([WidgetWord].self, from: data)
+            return words
         } catch {
             print("Widget: Failed to decode words: \(error)")
             return []

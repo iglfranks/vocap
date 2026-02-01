@@ -1,128 +1,70 @@
+import AuthenticationServices
 import Foundation
 import SwiftUI
 
-/// ViewModel for authentication state and actions
+/// ViewModel for CloudKit/Sign in with Apple authentication
 @MainActor
 final class AuthViewModel: ObservableObject {
     // MARK: - Published State
 
-    @Published var email: String = ""
     @Published var isLoading: Bool = false
     @Published var errorMessage: String?
-    @Published var authState: AuthViewState = .login
 
     // MARK: - Services
 
-    private let authService = AuthService.shared
+    private let authService = CloudKitAuthService.shared
 
     // MARK: - Computed Properties
 
-    var isAuthenticated: Bool {
-        authService.authState.isAuthenticated
+    var authState: AuthState {
+        authService.authState
     }
 
-    var currentUser: User? {
+    var currentUser: CloudUser? {
         authService.currentUser
     }
 
-    var isValidEmail: Bool {
-        email.isValidEmail
-    }
-
-    var canSubmit: Bool {
-        isValidEmail && !isLoading
+    var isSignedIn: Bool {
+        authState.isSignedIn
     }
 
     // MARK: - Initialization
 
     init() {
-        // Check for existing session on launch
         Task {
-            await checkExistingSession()
-        }
-        
-        // Sync auth state from AuthService
-        syncAuthState()
-    }
-    
-    /// Sync auth state from AuthService to this ViewModel
-    private func syncAuthState() {
-        switch authService.authState {
-        case .authenticated(let user):
-            authState = .authenticated
-        case .magicLinkSent(let email):
-            self.email = email
-            authState = .magicLinkSent
-        case .unauthenticated, .unknown:
-            authState = .login
-        case .authenticating:
-            // Keep current state while authenticating
-            break
+            await checkiCloudStatus()
         }
     }
 
     // MARK: - Actions
 
-    /// Check for existing session on launch
-    func checkExistingSession() async {
+    /// Check iCloud account status
+    func checkiCloudStatus() async {
         isLoading = true
-        await authService.checkExistingSession()
-        syncAuthState()
+        await authService.checkiCloudStatus()
         isLoading = false
     }
 
-    /// Send magic link to email
-    func sendMagicLink() async {
-        guard canSubmit else { return }
-
+    /// Handle Sign in with Apple result
+    func handleSignInWithApple(result: Result<ASAuthorization, Error>) async {
         isLoading = true
         errorMessage = nil
 
-        do {
-            try await authService.sendMagicLink(to: email)
-            syncAuthState()
-        } catch {
-            errorMessage = error.localizedDescription
-        }
+        await authService.handleSignInWithApple(result: result)
 
-        isLoading = false
-    }
-
-    /// Handle magic link callback URL
-    func handleMagicLinkCallback(url: URL) async {
-        isLoading = true
-        errorMessage = nil
-
-        do {
-            try await authService.handleMagicLinkCallback(url: url)
-            syncAuthState()
-        } catch {
-            errorMessage = error.localizedDescription
-            syncAuthState()
+        if case .failure(let error) = result {
+            // Don't show error for user cancellation
+            if (error as? ASAuthorizationError)?.code != .canceled {
+                errorMessage = error.localizedDescription
+            }
         }
 
         isLoading = false
     }
 
     /// Sign out
-    func signOut() async {
-        isLoading = true
-
-        do {
-            try await authService.signOut()
-            syncAuthState()
-            email = ""
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-
-        isLoading = false
-    }
-
-    /// Go back to login screen
-    func backToLogin() {
-        authState = .login
-        errorMessage = nil
+    func signOut() {
+        authService.signOut()
     }
 
     /// Clear error message
@@ -134,8 +76,8 @@ final class AuthViewModel: ObservableObject {
 // MARK: - View State
 
 enum AuthViewState: Equatable {
-    case login
-    case magicLinkSent
-    case authenticated
+    case loading
+    case signedIn
+    case signedOut
+    case iCloudUnavailable(String)
 }
-

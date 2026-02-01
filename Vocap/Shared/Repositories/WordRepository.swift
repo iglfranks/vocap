@@ -1,106 +1,88 @@
 import Foundation
 import SwiftData
+import WidgetKit
 
-/// Repository for local word storage using SwiftData
-/// Used for offline access and widget data
+/// Repository for word storage using SwiftData with CloudKit sync
 @MainActor
-final class WordRepository {
+final class WordRepository: ObservableObject {
     static let shared = WordRepository()
 
-    private var modelContainer: ModelContainer?
-    private var modelContext: ModelContext?
+    /// Public access to the model container for SwiftUI
+    let modelContainer: ModelContainer
+    private var modelContext: ModelContext
+
+    @Published private(set) var words: [Word] = []
+    @Published private(set) var isLoading = false
 
     private init() {
-        setupContainer()
-    }
-
-    /// Set up the SwiftData container with App Group support
-    private func setupContainer() {
         do {
+            // Use persistent storage with CloudKit sync
             let schema = Schema([Word.self, NotificationSchedule.self])
+            let configuration = ModelConfiguration(
+                schema: schema,
+                isStoredInMemoryOnly: false,
+                cloudKitDatabase: .none  // Disabled until CloudKit container is configured
+            )
 
-            // Configure for App Group sharing
-            var configuration: ModelConfiguration
+            modelContainer = try ModelContainer(
+                for: Word.self, NotificationSchedule.self,
+                configurations: configuration
+            )
 
-            if let appGroupURL = AppGroup.swiftDataURL {
-                configuration = ModelConfiguration(
-                    schema: schema,
-                    url: appGroupURL,
-                    allowsSave: true
-                )
-            } else {
-                // Fallback to default location
-                configuration = ModelConfiguration(schema: schema)
-            }
-
-            modelContainer = try ModelContainer(for: schema, configurations: [configuration])
-            modelContext = modelContainer?.mainContext
+            modelContext = modelContainer.mainContext
+            modelContext.autosaveEnabled = true
 
         } catch {
-            print("Failed to create ModelContainer: \(error)")
+            fatalError(
+                "Failed to create ModelContainer: \(error.localizedDescription)\n\nFull error: \(error)"
+            )
         }
     }
 
     // MARK: - CRUD Operations
 
-    /// Save a word to local storage
-    func save(_ word: Word) throws {
-        guard let context = modelContext else {
-            throw RepositoryError.contextNotAvailable
-        }
-
-        context.insert(word)
-        try context.save()
-    }
-
-    /// Save multiple words
-    func saveAll(_ words: [Word]) throws {
-        guard let context = modelContext else {
-            throw RepositoryError.contextNotAvailable
-        }
-
-        for word in words {
-            context.insert(word)
-        }
-
-        try context.save()
-    }
-
-    /// Fetch all words
-    func fetchAll() throws -> [Word] {
-        guard let context = modelContext else {
-            throw RepositoryError.contextNotAvailable
-        }
+    /// Fetch all words from storage
+    func fetchAll() async throws {
+        isLoading = true
+        defer { isLoading = false }
 
         let descriptor = FetchDescriptor<Word>(
             sortBy: [SortDescriptor(\.addedAt, order: .reverse)]
         )
 
-        return try context.fetch(descriptor)
+        words = try modelContext.fetch(descriptor)
+
+        // Update widget data
+        updateWidgetWords()
+    }
+
+    /// Save a word to storage
+    func save(_ word: Word) throws {
+        modelContext.insert(word)
+        try modelContext.save()
+
+        // Refresh local cache
+        Task { try await fetchAll() }
+    }
+
+    /// Save multiple words
+    func saveAll(_ words: [Word]) throws {
+        for word in words {
+            modelContext.insert(word)
+        }
+        try modelContext.save()
+
+        // Refresh local cache
+        Task { try await fetchAll() }
     }
 
     /// Fetch a word by ID
-    func fetch(id: UUID) throws -> Word? {
-        guard let context = modelContext else {
-            throw RepositoryError.contextNotAvailable
-        }
-
-        let predicate = #Predicate<Word> { word in
-            word.id == id
-        }
-
-        var descriptor = FetchDescriptor<Word>(predicate: predicate)
-        descriptor.fetchLimit = 1
-
-        return try context.fetch(descriptor).first
+    func fetch(id: PersistentIdentifier) throws -> Word? {
+        return try modelContext.fetch(FetchDescriptor<Word>()).first { $0.id == id }
     }
 
     /// Fetch a word by term
     func fetch(term: String) throws -> Word? {
-        guard let context = modelContext else {
-            throw RepositoryError.contextNotAvailable
-        }
-
         let lowercasedTerm = term.lowercased()
         let predicate = #Predicate<Word> { word in
             word.term.localizedStandardContains(lowercasedTerm)
@@ -109,21 +91,20 @@ final class WordRepository {
         var descriptor = FetchDescriptor<Word>(predicate: predicate)
         descriptor.fetchLimit = 1
 
-        return try context.fetch(descriptor).first
+        return try modelContext.fetch(descriptor).first
     }
 
     /// Delete a word
     func delete(_ word: Word) throws {
-        guard let context = modelContext else {
-            throw RepositoryError.contextNotAvailable
-        }
+        modelContext.delete(word)
+        try modelContext.save()
 
-        context.delete(word)
-        try context.save()
+        // Refresh local cache
+        Task { try await fetchAll() }
     }
 
     /// Delete a word by ID
-    func delete(id: UUID) throws {
+    func delete(id: PersistentIdentifier) throws {
         guard let word = try fetch(id: id) else {
             return
         }
@@ -132,89 +113,51 @@ final class WordRepository {
 
     /// Delete all words
     func deleteAll() throws {
-        guard let context = modelContext else {
-            throw RepositoryError.contextNotAvailable
-        }
+        try modelContext.delete(model: Word.self)
+        try modelContext.save()
 
-        try context.delete(model: Word.self)
-        try context.save()
+        // Refresh local cache
+        Task { try await fetchAll() }
     }
 
-    // MARK: - Random Words
+    /// Mark a word as shown (updates lastShownAt)
+    func markAsShown(_ word: Word) throws {
+        word.lastShownAt = Date()
+        try modelContext.save()
+    }
+
+    // MARK: - Query Helpers
 
     /// Get random words for widgets/notifications
-    func getRandomWords(count: Int) throws -> [Word] {
-        let allWords = try fetchAll()
-        guard !allWords.isEmpty else { return [] }
-
-        let shuffled = allWords.shuffled()
+    func getRandomWords(count: Int) -> [Word] {
+        guard !words.isEmpty else { return [] }
+        let shuffled = words.shuffled()
         return Array(shuffled.prefix(count))
     }
 
     /// Get least recently shown words
-    func getLeastRecentlyShown(count: Int) throws -> [Word] {
-        guard let context = modelContext else {
-            throw RepositoryError.contextNotAvailable
+    func getLeastRecentlyShown(count: Int) -> [Word] {
+        let sorted = words.sorted { word1, word2 in
+            guard let date1 = word1.lastShownAt else { return true }
+            guard let date2 = word2.lastShownAt else { return false }
+            return date1 < date2
         }
-
-        // Sort by lastShownAt ascending (nulls first)
-        let descriptor = FetchDescriptor<Word>(
-            sortBy: [SortDescriptor(\.lastShownAt, order: .forward)]
-        )
-
-        let words = try context.fetch(descriptor)
-        return Array(words.prefix(count))
-    }
-
-    // MARK: - Sync Helpers
-
-    /// Get words that haven't been synced
-    func getUnsyncedWords() throws -> [Word] {
-        guard let context = modelContext else {
-            throw RepositoryError.contextNotAvailable
-        }
-
-        let predicate = #Predicate<Word> { word in
-            word.isSynced == false
-        }
-
-        let descriptor = FetchDescriptor<Word>(predicate: predicate)
-        return try context.fetch(descriptor)
-    }
-
-    /// Mark a word as synced
-    func markAsSynced(_ word: Word, remoteId: UUID) throws {
-        word.isSynced = true
-        word.remoteId = remoteId
-        try modelContext?.save()
-    }
-
-    /// Update local words from DTOs (after sync)
-    func updateFromDTOs(_ dtos: [WordDTO]) throws {
-        guard let context = modelContext else {
-            throw RepositoryError.contextNotAvailable
-        }
-
-        // Delete existing words
-        try context.delete(model: Word.self)
-
-        // Insert new words from DTOs
-        for dto in dtos {
-            let word = dto.toModel()
-            context.insert(word)
-        }
-
-        try context.save()
+        return Array(sorted.prefix(count))
     }
 
     /// Get word count
     func count() throws -> Int {
-        guard let context = modelContext else {
-            throw RepositoryError.contextNotAvailable
-        }
-
         let descriptor = FetchDescriptor<Word>()
-        return try context.fetchCount(descriptor)
+        return try modelContext.fetchCount(descriptor)
+    }
+
+    // MARK: - Widget Support
+
+    /// Update words in App Group for widget display
+    private func updateWidgetWords() {
+        let snapshots = getLeastRecentlyShown(count: 24).map { $0.toSnapshot() }
+        try? AppGroup.save(snapshots, forKey: AppGroup.Keys.widgetWords)
+        WidgetCenter.shared.reloadAllTimelines()
     }
 }
 

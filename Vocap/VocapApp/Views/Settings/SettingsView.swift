@@ -16,9 +16,9 @@ struct SettingsView: View {
                                 .foregroundColor(.accentColor)
 
                             VStack(alignment: .leading, spacing: 4) {
-                                Text(user.email)
+                                Text(user.displayName ?? user.email ?? "iCloud User")
                                     .font(.body)
-                                Text("Signed in")
+                                Text("Signed in via iCloud")
                                     .font(.caption)
                                     .foregroundColor(.green)
                             }
@@ -27,9 +27,7 @@ struct SettingsView: View {
                     }
 
                     Button(role: .destructive) {
-                        Task {
-                            await authViewModel.signOut()
-                        }
+                        authViewModel.signOut()
                     } label: {
                         HStack {
                             Image(systemName: "rectangle.portrait.and.arrow.right")

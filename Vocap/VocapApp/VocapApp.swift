@@ -6,16 +6,16 @@ import SwiftUI
 struct VocapApp: App {
     @StateObject private var authViewModel = AuthViewModel()
 
+    /// Use the shared repository's model container for SwiftData CloudKit sync
+    var sharedModelContainer: ModelContainer {
+        WordRepository.shared.modelContainer
+    }
+
     var body: some Scene {
         WindowGroup {
             ContentView()
                 .environmentObject(authViewModel)
-                .onOpenURL { url in
-                    // Handle magic link callback
-                    Task {
-                        await authViewModel.handleMagicLinkCallback(url: url)
-                    }
-                }
+                .modelContainer(sharedModelContainer)
         }
     }
 }
