@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Settings view with account and notification options
+/// Settings view with account options
 struct SettingsView: View {
     @EnvironmentObject var authViewModel: AuthViewModel
 
@@ -36,15 +36,6 @@ struct SettingsView: View {
                     }
                 }
 
-                // Notifications Section (placeholder for now)
-                Section("Notifications") {
-                    NavigationLink {
-                        NotificationSettingsPlaceholder()
-                    } label: {
-                        Label("Notification Schedule", systemImage: "bell.badge.fill")
-                    }
-                }
-
                 // About Section
                 Section("About") {
                     HStack {
@@ -57,29 +48,6 @@ struct SettingsView: View {
             }
             .navigationTitle("Settings")
         }
-    }
-}
-
-// MARK: - Notification Settings Placeholder
-
-struct NotificationSettingsPlaceholder: View {
-    var body: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "bell.badge.fill")
-                .font(.system(size: 64))
-                .foregroundColor(.accentColor)
-
-            Text("Coming Soon")
-                .font(.title2)
-                .fontWeight(.semibold)
-
-            Text("Notification scheduling will be\navailable in a future update")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-        }
-        .navigationTitle("Notifications")
-        .navigationBarTitleDisplayMode(.inline)
     }
 }
 

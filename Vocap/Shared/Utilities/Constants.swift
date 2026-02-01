@@ -25,20 +25,8 @@ enum Constants {
         static let largeWidgetKind = "VocapLargeWidget"
     }
 
-    /// Notification configuration
-    enum Notifications {
-        /// Category identifier for word reminder notifications
-        static let wordReminderCategory = "WORD_REMINDER"
-
-        /// Default notification settings
-        static let defaultFrequencyHours = 4
-        static let defaultStartHour = 9
-        static let defaultEndHour = 21
-    }
-
     /// User Defaults keys
     enum UserDefaultsKeys {
         static let hasCompletedOnboarding = "hasCompletedOnboarding"
-        static let notificationsEnabled = "notificationsEnabled"
     }
 }

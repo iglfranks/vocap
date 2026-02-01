@@ -89,17 +89,6 @@ struct WordDetailView: View {
                             .foregroundColor(.primary)
                     }
                     .font(.subheadline)
-
-                    if let lastShown = word.lastShownAt {
-                        HStack {
-                            Text("Last reviewed")
-                                .foregroundColor(.secondary)
-                            Spacer()
-                            Text(lastShown.formatted(date: .abbreviated, time: .shortened))
-                                .foregroundColor(.primary)
-                        }
-                        .font(.subheadline)
-                    }
                 }
                 .padding()
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -149,8 +138,7 @@ struct WordDetailView: View {
                 partOfSpeech: "noun",
                 example: "A fortunate stroke of serendipity brought them together.",
                 phonetic: "/ˌserənˈdipitē/",
-                addedAt: Date().addingTimeInterval(-86400 * 3),
-                lastShownAt: Date().addingTimeInterval(-3600)
+                addedAt: Date().addingTimeInterval(-86400 * 3)
             ))
     }
 }

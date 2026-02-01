@@ -22,17 +22,13 @@ final class Word {
     /// When the word was added to the bank
     var addedAt: Date = Date()
 
-    /// When the word was last shown in a notification or widget
-    var lastShownAt: Date?
-
     init(
         term: String,
         definition: String,
         partOfSpeech: String? = nil,
         example: String? = nil,
         phonetic: String? = nil,
-        addedAt: Date = Date(),
-        lastShownAt: Date? = nil
+        addedAt: Date = Date()
     ) {
         self.term = term
         self.definition = definition
@@ -40,11 +36,10 @@ final class Word {
         self.example = example
         self.phonetic = phonetic
         self.addedAt = addedAt
-        self.lastShownAt = lastShownAt
     }
 }
 
-// MARK: - Snapshot for Widget/Notification serialization
+// MARK: - Snapshot for Widget serialization
 
 /// Lightweight struct for passing word data to widgets via App Group
 struct WordSnapshot: Codable, Identifiable, Sendable {
@@ -73,7 +68,7 @@ struct WordSnapshot: Codable, Identifiable, Sendable {
 }
 
 extension Word {
-    /// Convert to snapshot for widget/notification use
+    /// Convert to snapshot for widget use
     func toSnapshot() -> WordSnapshot {
         WordSnapshot(
             id: persistentModelID.hashValue.description,

@@ -17,7 +17,7 @@ final class WordRepository: ObservableObject {
     private init() {
         do {
             // Use persistent storage with CloudKit sync
-            let schema = Schema([Word.self, NotificationSchedule.self])
+            let schema = Schema([Word.self])
             let configuration = ModelConfiguration(
                 schema: schema,
                 isStoredInMemoryOnly: false,
@@ -25,7 +25,7 @@ final class WordRepository: ObservableObject {
             )
 
             modelContainer = try ModelContainer(
-                for: Word.self, NotificationSchedule.self,
+                for: Word.self,
                 configurations: configuration
             )
 
@@ -120,29 +120,13 @@ final class WordRepository: ObservableObject {
         Task { try await fetchAll() }
     }
 
-    /// Mark a word as shown (updates lastShownAt)
-    func markAsShown(_ word: Word) throws {
-        word.lastShownAt = Date()
-        try modelContext.save()
-    }
-
     // MARK: - Query Helpers
 
-    /// Get random words for widgets/notifications
+    /// Get random words for widgets
     func getRandomWords(count: Int) -> [Word] {
         guard !words.isEmpty else { return [] }
         let shuffled = words.shuffled()
         return Array(shuffled.prefix(count))
-    }
-
-    /// Get least recently shown words
-    func getLeastRecentlyShown(count: Int) -> [Word] {
-        let sorted = words.sorted { word1, word2 in
-            guard let date1 = word1.lastShownAt else { return true }
-            guard let date2 = word2.lastShownAt else { return false }
-            return date1 < date2
-        }
-        return Array(sorted.prefix(count))
     }
 
     /// Get word count
@@ -155,7 +139,7 @@ final class WordRepository: ObservableObject {
 
     /// Update words in App Group for widget display
     private func updateWidgetWords() {
-        let snapshots = getLeastRecentlyShown(count: 24).map { $0.toSnapshot() }
+        let snapshots = getRandomWords(count: 24).map { $0.toSnapshot() }
         try? AppGroup.save(snapshots, forKey: AppGroup.Keys.widgetWords)
         WidgetCenter.shared.reloadAllTimelines()
     }
