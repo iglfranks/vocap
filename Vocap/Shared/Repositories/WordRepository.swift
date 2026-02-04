@@ -21,7 +21,7 @@ final class WordRepository: ObservableObject {
             let configuration = ModelConfiguration(
                 schema: schema,
                 isStoredInMemoryOnly: false,
-                cloudKitDatabase: .none  // Disabled until CloudKit container is configured
+                cloudKitDatabase: .automatic
             )
 
             modelContainer = try ModelContainer(

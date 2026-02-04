@@ -11,7 +11,9 @@ enum Constants {
     /// Dictionary API configuration
     enum DictionaryAPI {
         /// Free Dictionary API base URL
-        static let baseURL = URL(string: "https://api.dictionaryapi.dev/api/v2/entries/en")!
+        static let baseURL = URL(string: "https://freedictionaryapi.com/api/v1/entries/")!
+        /// Default language code (ISO 639-1)
+        static let defaultLanguage = "en"
     }
 
     /// Widget configuration
