@@ -1,4 +1,5 @@
 import Foundation
+import os.log
 
 /// Service for fetching word definitions from the Free Dictionary API
 final class DictionaryService: Sendable {
@@ -7,6 +8,15 @@ final class DictionaryService: Sendable {
     private let session: URLSession
     private let baseURL = Constants.DictionaryAPI.baseURL
     private let language = Constants.DictionaryAPI.defaultLanguage
+    private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.vocap.app", category: "DictionaryService")
+
+    /// Maximum allowed length for search terms to prevent memory issues and API abuse
+    static let maxSearchTermLength = 100
+
+    /// Set of valid language codes from supported languages
+    private static let validLanguageCodes: Set<String> = Set(
+        Constants.DictionaryAPI.supportedLanguages.map { $0.code }
+    )
 
     init(session: URLSession = .shared) {
         self.session = session
@@ -14,12 +24,27 @@ final class DictionaryService: Sendable {
 
     /// Search for a word's definition
     func lookupWord(_ term: String, language: String? = nil) async throws -> DictionaryResult {
-        let cleanedTerm =
-            term.trimmingCharacters(in: .whitespacesAndNewlines)
-            .lowercased()
-            .addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? term.lowercased()
+        // Validate input length
+        let trimmedTerm = term.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmedTerm.count <= Self.maxSearchTermLength else {
+            throw DictionaryError.termTooLong(maxLength: Self.maxSearchTermLength)
+        }
 
+        guard !trimmedTerm.isEmpty else {
+            throw DictionaryError.emptyTerm
+        }
+
+        // Validate language code against whitelist
         let lang = language ?? self.language
+        guard Self.validLanguageCodes.contains(lang) else {
+            throw DictionaryError.invalidLanguage(lang)
+        }
+
+        let cleanedTerm =
+            trimmedTerm
+            .lowercased()
+            .addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? trimmedTerm.lowercased()
+
         let url =
             baseURL
             .appendingPathComponent(lang)
@@ -40,7 +65,8 @@ final class DictionaryService: Sendable {
                 throw DictionaryError.noResults
             }
 
-            return result.toDictionaryResult()
+            // Sanitize and validate API response before returning
+            return result.toSanitizedDictionaryResult()
 
         case 404:
             throw DictionaryError.wordNotFound(term)
@@ -127,6 +153,12 @@ struct FreeDictionaryResponse: Codable {
 
     /// Convert API response to our app's model
     func toDictionaryResult() -> DictionaryResult {
+        toSanitizedDictionaryResult()
+    }
+
+    /// Convert API response to our app's model with sanitization
+    /// Sanitizes all text fields to prevent potential security issues from malicious API responses
+    func toSanitizedDictionaryResult() -> DictionaryResult {
         // Get the best phonetic text from the first entry's pronunciations
         let phoneticText = entries.first?.pronunciations?.first(where: { $0.text != nil })?.text
 
@@ -134,27 +166,47 @@ struct FreeDictionaryResponse: Codable {
         let firstEntry = entries.first
         let firstSense = firstEntry?.senses.first
 
-        // Collect all definitions across all entries
+        // Collect all definitions across all entries with sanitization
         var allDefinitions: [DictionaryResult.Definition] = []
         for entry in entries {
             for sense in entry.senses {
                 allDefinitions.append(
                     DictionaryResult.Definition(
-                        text: sense.definition,
-                        example: sense.examples?.first,
-                        partOfSpeech: entry.partOfSpeech
+                        text: Self.sanitize(sense.definition),
+                        example: sense.examples?.first.map { Self.sanitize($0) },
+                        partOfSpeech: Self.sanitize(entry.partOfSpeech)
                     ))
             }
         }
 
         return DictionaryResult(
-            word: word,
-            phonetic: phoneticText,
-            primaryDefinition: firstSense?.definition ?? "",
-            primaryPartOfSpeech: firstEntry?.partOfSpeech,
-            primaryExample: firstSense?.examples?.first,
+            word: Self.sanitize(word),
+            phonetic: phoneticText.map { Self.sanitize($0) },
+            primaryDefinition: Self.sanitize(firstSense?.definition ?? ""),
+            primaryPartOfSpeech: firstEntry.map { Self.sanitize($0.partOfSpeech) },
+            primaryExample: firstSense?.examples?.first.map { Self.sanitize($0) },
             allDefinitions: allDefinitions
         )
+    }
+
+    /// Sanitize a string from external API response
+    /// - Trims whitespace
+    /// - Limits length to prevent memory issues
+    /// - Removes control characters (except newlines/tabs for formatting)
+    private static func sanitize(_ input: String, maxLength: Int = 10000) -> String {
+        let trimmed = input.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // Limit length
+        let truncated = trimmed.count > maxLength ? String(trimmed.prefix(maxLength)) : trimmed
+
+        // Remove control characters except newline and tab (for text formatting)
+        let allowedControlCharacters = CharacterSet(charactersIn: "\n\t")
+        let controlCharacters = CharacterSet.controlCharacters.subtracting(allowedControlCharacters)
+
+        return truncated.unicodeScalars
+            .filter { !controlCharacters.contains($0) }
+            .map { Character($0) }
+            .reduce(into: "") { $0.append($1) }
     }
 }
 
@@ -194,6 +246,9 @@ enum DictionaryError: Error, LocalizedError {
     case serverError(Int)
     case networkError(Error)
     case rateLimitExceeded
+    case termTooLong(maxLength: Int)
+    case emptyTerm
+    case invalidLanguage(String)
 
     var errorDescription: String? {
         switch self {
@@ -209,6 +264,12 @@ enum DictionaryError: Error, LocalizedError {
             return "Network error: \(error.localizedDescription)"
         case .rateLimitExceeded:
             return "Too many requests. Please try again later."
+        case .termTooLong(let maxLength):
+            return "Search term is too long. Maximum \(maxLength) characters allowed."
+        case .emptyTerm:
+            return "Please enter a word to search."
+        case .invalidLanguage(let code):
+            return "Unsupported language code: \(code)"
         }
     }
 }

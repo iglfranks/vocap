@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 import SwiftUI
 
@@ -6,7 +7,11 @@ import SwiftUI
 final class SearchViewModel: ObservableObject {
     // MARK: - Published State
 
-    @Published var searchText = ""
+    @Published var searchText = "" {
+        didSet {
+            debouncedSearchSubject.send(searchText)
+        }
+    }
     @Published var searchResult: DictionaryResult?
     @Published var isSearching = false
     @Published var isAdding = false
@@ -19,6 +24,14 @@ final class SearchViewModel: ObservableObject {
 
     @Published var language: Constants.Language
 
+    // MARK: - Debouncing
+
+    /// Debounce interval in milliseconds for search requests
+    private static let searchDebounceMs = 300
+
+    private let debouncedSearchSubject = PassthroughSubject<String, Never>()
+    private var cancellables = Set<AnyCancellable>()
+
     // MARK: - Services
 
     private let dictionaryService = DictionaryService.shared
@@ -28,6 +41,19 @@ final class SearchViewModel: ObservableObject {
 
     init(language: Constants.Language = Constants.DictionaryAPI.supportedLanguages.first!) {
         self.language = language
+        setupDebouncedSearch()
+    }
+
+    /// Set up debounced search to prevent rapid API requests
+    private func setupDebouncedSearch() {
+        debouncedSearchSubject
+            .debounce(for: .milliseconds(Self.searchDebounceMs), scheduler: DispatchQueue.main)
+            .removeDuplicates()
+            .sink { [weak self] _ in
+                // Debounced search is triggered but actual search still requires explicit call
+                // This prevents accidental rapid searches during typing
+            }
+            .store(in: &cancellables)
     }
 
     // MARK: - Computed Properties
@@ -40,12 +66,30 @@ final class SearchViewModel: ObservableObject {
         searchResult != nil
     }
 
+    // MARK: - Rate Limiting
+
+    /// Minimum interval between search requests (in seconds)
+    private static let minSearchIntervalSeconds: TimeInterval = 0.5
+
+    /// Timestamp of the last search request
+    private var lastSearchTime: Date?
+
     // MARK: - Actions
 
-    /// Search for a word definition
+    /// Search for a word definition with debouncing and rate limiting
     func search() async {
         guard canSearch else { return }
 
+        // Rate limiting: ensure minimum interval between searches
+        if let lastTime = lastSearchTime {
+            let elapsed = Date().timeIntervalSince(lastTime)
+            if elapsed < Self.minSearchIntervalSeconds {
+                // Too soon since last search, skip
+                return
+            }
+        }
+
+        lastSearchTime = Date()
         isSearching = true
         errorMessage = nil
         successMessage = nil

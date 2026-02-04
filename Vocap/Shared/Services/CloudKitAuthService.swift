@@ -1,6 +1,7 @@
 import AuthenticationServices
 import CloudKit
 import Foundation
+import os.log
 
 /// Service for handling iCloud authentication and Sign in with Apple
 @MainActor
@@ -11,6 +12,7 @@ final class CloudKitAuthService: ObservableObject {
     @Published private(set) var currentUser: CloudUser?
 
     private let container: CKContainer
+    private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.vocap.app", category: "CloudKitAuth")
 
     private init() {
         self.container = CKContainer(identifier: Constants.cloudKitContainerID)
@@ -89,7 +91,8 @@ final class CloudKitAuthService: ObservableObject {
             }
 
         case .failure(let error):
-            print("Sign in with Apple failed: \(error.localizedDescription)")
+            // Use os_log with private flag to prevent sensitive error details from appearing in device logs
+            logger.error("Sign in with Apple failed: \(error.localizedDescription, privacy: .private)")
         }
     }
 
