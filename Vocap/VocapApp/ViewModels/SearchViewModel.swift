@@ -15,10 +15,20 @@ final class SearchViewModel: ObservableObject {
     @Published var selectedPartOfSpeech: String?
     @Published var selectedDefinition: DictionaryResult.Definition?
 
+    // MARK: - Configuration
+
+    @Published var language: Constants.Language
+
     // MARK: - Services
 
     private let dictionaryService = DictionaryService.shared
     private let repository = WordRepository.shared
+
+    // MARK: - Initialization
+
+    init(language: Constants.Language = Constants.DictionaryAPI.supportedLanguages.first!) {
+        self.language = language
+    }
 
     // MARK: - Computed Properties
 
@@ -43,7 +53,8 @@ final class SearchViewModel: ObservableObject {
 
         do {
             let result = try await dictionaryService.lookupWord(
-                searchText.trimmingCharacters(in: .whitespaces))
+                searchText.trimmingCharacters(in: .whitespaces),
+                language: language.code)
             searchResult = result
 
             // Auto-select first part of speech and first definition
@@ -109,7 +120,8 @@ final class SearchViewModel: ObservableObject {
                 definition: selectedDef.text,
                 partOfSpeech: selectedDef.partOfSpeech,
                 example: selectedDef.example,
-                phonetic: result.phonetic
+                phonetic: result.phonetic,
+                languageCode: language.code
             )
 
             try repository.save(word)
@@ -141,5 +153,12 @@ final class SearchViewModel: ObservableObject {
     func clearMessages() {
         errorMessage = nil
         successMessage = nil
+    }
+
+    /// Set the search language
+    func setLanguage(_ language: Constants.Language) {
+        self.language = language
+        // Clear any existing search when language changes
+        clearSearch()
     }
 }

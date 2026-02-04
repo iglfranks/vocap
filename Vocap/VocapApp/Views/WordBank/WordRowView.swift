@@ -22,6 +22,10 @@ struct WordRowView: View {
                 }
 
                 Spacer()
+
+                Text(word.languageName)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
             }
 
             Text(word.definition)
@@ -49,14 +53,16 @@ struct WordRowView: View {
                 definition: "The occurrence of events by chance in a happy or beneficial way",
                 partOfSpeech: "noun",
                 example: "A fortunate stroke of serendipity",
-                phonetic: "/ˌserənˈdipitē/"
+                phonetic: "/ˌserənˈdipitē/",
+                languageCode: "en"
             ))
 
         WordRowView(
             word: Word(
-                term: "ephemeral",
-                definition: "Lasting for a very short time",
-                partOfSpeech: "adjective"
+                term: "efímero",
+                definition: "Que dura poco tiempo",
+                partOfSpeech: "adjective",
+                languageCode: "es"
             ))
     }
 }

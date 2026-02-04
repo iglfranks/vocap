@@ -10,6 +10,7 @@ final class WordBankViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var errorMessage: String?
     @Published var searchText = ""
+    @Published var selectedLanguageFilter: String? = nil  // nil means "All Languages"
 
     // MARK: - Repository
 
@@ -17,18 +18,37 @@ final class WordBankViewModel: ObservableObject {
 
     // MARK: - Computed Properties
 
+    /// Unique languages present in the user's word bank
+    var availableLanguages: [Constants.Language] {
+        let codes = Set(words.map { $0.languageCode })
+        return Constants.DictionaryAPI.supportedLanguages.filter { codes.contains($0.code) }
+    }
+
     var filteredWords: [Word] {
-        if searchText.isEmpty {
-            return words
+        var result = words
+
+        // Filter by language if selected
+        if let languageCode = selectedLanguageFilter {
+            result = result.filter { $0.languageCode == languageCode }
         }
-        return words.filter { word in
-            word.term.localizedCaseInsensitiveContains(searchText)
-                || word.definition.localizedCaseInsensitiveContains(searchText)
+
+        // Filter by search text
+        if !searchText.isEmpty {
+            result = result.filter { word in
+                word.term.localizedCaseInsensitiveContains(searchText)
+                    || word.definition.localizedCaseInsensitiveContains(searchText)
+            }
         }
+
+        return result
     }
 
     var wordCount: Int {
         words.count
+    }
+
+    var filteredWordCount: Int {
+        filteredWords.count
     }
 
     var isEmpty: Bool {

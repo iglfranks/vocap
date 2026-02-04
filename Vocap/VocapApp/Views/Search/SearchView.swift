@@ -4,7 +4,7 @@ import SwiftUI
 struct SearchView: View {
     @StateObject private var viewModel = SearchViewModel()
     @Environment(\.dismiss) private var dismiss
-    
+
     var onWordAdded: (() -> Void)?
     
     var body: some View {
@@ -56,48 +56,83 @@ struct SearchView: View {
     }
     
     // MARK: - Search Bar
-    
+
     private var searchBar: some View {
-        HStack(spacing: 12) {
+        VStack(spacing: 12) {
+            // Language selector
             HStack {
-                Image(systemName: "magnifyingglass")
+                Text("Language:")
+                    .font(.subheadline)
                     .foregroundColor(.secondary)
-                
-                TextField("Search for a word...", text: $viewModel.searchText)
-                    .textFieldStyle(.plain)
-                    .autocapitalization(.none)
-                    .autocorrectionDisabled()
-                    .submitLabel(.search)
-                    .onSubmit {
-                        Task {
-                            await viewModel.search()
+
+                Menu {
+                    ForEach(Constants.DictionaryAPI.supportedLanguages) { language in
+                        Button {
+                            viewModel.setLanguage(language)
+                        } label: {
+                            HStack {
+                                Text(language.name)
+                                if language.code == viewModel.language.code {
+                                    Image(systemName: "checkmark")
+                                }
+                            }
                         }
                     }
-                
-                if !viewModel.searchText.isEmpty {
-                    Button {
-                        viewModel.clearSearch()
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(.secondary)
+                } label: {
+                    HStack(spacing: 4) {
+                        Text(viewModel.language.name)
+                            .fontWeight(.medium)
+                        Image(systemName: "chevron.down")
+                            .font(.caption)
+                    }
+                    .foregroundColor(.accentColor)
+                }
+
+                Spacer()
+            }
+
+            // Search field
+            HStack(spacing: 12) {
+                HStack {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundColor(.secondary)
+
+                    TextField("Search for a word...", text: $viewModel.searchText)
+                        .textFieldStyle(.plain)
+                        .autocapitalization(.none)
+                        .autocorrectionDisabled()
+                        .submitLabel(.search)
+                        .onSubmit {
+                            Task {
+                                await viewModel.search()
+                            }
+                        }
+
+                    if !viewModel.searchText.isEmpty {
+                        Button {
+                            viewModel.clearSearch()
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(.secondary)
+                        }
                     }
                 }
-            }
-            .padding(12)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color(.systemGray6))
-            )
-            
-            Button {
-                Task {
-                    await viewModel.search()
+                .padding(12)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color(.systemGray6))
+                )
+
+                Button {
+                    Task {
+                        await viewModel.search()
+                    }
+                } label: {
+                    Text("Search")
+                        .fontWeight(.medium)
                 }
-            } label: {
-                Text("Search")
-                    .fontWeight(.medium)
+                .disabled(!viewModel.canSearch)
             }
-            .disabled(!viewModel.canSearch)
         }
     }
     
@@ -237,8 +272,8 @@ struct SearchView: View {
             Image(systemName: "character.book.closed.fill")
                 .font(.system(size: 64))
                 .foregroundStyle(.quaternary)
-            
-            Text("Search for any English word")
+
+            Text("Search for any \(viewModel.language.name) word")
                 .font(.headline)
                 .foregroundColor(.secondary)
             

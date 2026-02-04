@@ -6,6 +6,21 @@ struct WordBankView: View {
     @State private var showingSearch = false
     @State private var editMode: EditMode = .inactive
 
+    private var wordCountLabel: String {
+        if viewModel.selectedLanguageFilter != nil || !viewModel.searchText.isEmpty {
+            return "\(viewModel.filteredWordCount) of \(viewModel.wordCount) words"
+        }
+        return "\(viewModel.wordCount) words"
+    }
+
+    private var selectedLanguageLabel: String {
+        if let code = viewModel.selectedLanguageFilter,
+           let language = viewModel.availableLanguages.first(where: { $0.code == code }) {
+            return language.name
+        }
+        return "All"
+    }
+
     var body: some View {
         NavigationStack {
             Group {
@@ -27,7 +42,7 @@ struct WordBankView: View {
                             .font(.title2)
                     }
                 }
-                
+
                 #if os(macOS)
                 ToolbarItem(placement: .automatic) {
                     Button {
@@ -68,13 +83,52 @@ struct WordBankView: View {
 
     private var wordList: some View {
         List {
-            // Stats header
+            // Stats header with language filter
             Section {
                 HStack {
-                    Label("\(viewModel.wordCount) words", systemImage: "books.vertical.fill")
+                    Label(wordCountLabel, systemImage: "books.vertical.fill")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
+
                     Spacer()
+
+                    // Language filter dropdown (only show if multiple languages)
+                    if viewModel.availableLanguages.count > 1 {
+                        Menu {
+                            Button {
+                                viewModel.selectedLanguageFilter = nil
+                            } label: {
+                                HStack {
+                                    Text("All Languages")
+                                    if viewModel.selectedLanguageFilter == nil {
+                                        Image(systemName: "checkmark")
+                                    }
+                                }
+                            }
+
+                            Divider()
+
+                            ForEach(viewModel.availableLanguages) { language in
+                                Button {
+                                    viewModel.selectedLanguageFilter = language.code
+                                } label: {
+                                    HStack {
+                                        Text(language.name)
+                                        if viewModel.selectedLanguageFilter == language.code {
+                                            Image(systemName: "checkmark")
+                                        }
+                                    }
+                                }
+                            }
+                        } label: {
+                            HStack(spacing: 4) {
+                                Text(selectedLanguageLabel)
+                                    .font(.subheadline)
+                                Image(systemName: "line.3.horizontal.decrease.circle")
+                            }
+                            .foregroundColor(.accentColor)
+                        }
+                    }
                 }
             }
 

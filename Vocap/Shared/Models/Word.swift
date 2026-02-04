@@ -19,8 +19,16 @@ final class Word {
     /// Phonetic pronunciation
     var phonetic: String?
 
+    /// Language code (e.g., "en", "es", "fr")
+    var languageCode: String = "en"
+
     /// When the word was added to the bank
     var addedAt: Date = Date()
+
+    /// Get the language name from the code
+    var languageName: String {
+        Constants.DictionaryAPI.supportedLanguages.first { $0.code == languageCode }?.name ?? languageCode.uppercased()
+    }
 
     init(
         term: String,
@@ -28,6 +36,7 @@ final class Word {
         partOfSpeech: String? = nil,
         example: String? = nil,
         phonetic: String? = nil,
+        languageCode: String = "en",
         addedAt: Date = Date()
     ) {
         self.term = term
@@ -35,6 +44,7 @@ final class Word {
         self.partOfSpeech = partOfSpeech
         self.example = example
         self.phonetic = phonetic
+        self.languageCode = languageCode
         self.addedAt = addedAt
     }
 }
@@ -49,6 +59,7 @@ struct WordSnapshot: Codable, Identifiable, Sendable {
     let partOfSpeech: String?
     let example: String?
     let phonetic: String?
+    let languageCode: String
 
     init(
         id: String,
@@ -56,7 +67,8 @@ struct WordSnapshot: Codable, Identifiable, Sendable {
         definition: String,
         partOfSpeech: String? = nil,
         example: String? = nil,
-        phonetic: String? = nil
+        phonetic: String? = nil,
+        languageCode: String = "en"
     ) {
         self.id = id
         self.term = term
@@ -64,6 +76,7 @@ struct WordSnapshot: Codable, Identifiable, Sendable {
         self.partOfSpeech = partOfSpeech
         self.example = example
         self.phonetic = phonetic
+        self.languageCode = languageCode
     }
 }
 
@@ -76,7 +89,8 @@ extension Word {
             definition: definition,
             partOfSpeech: partOfSpeech,
             example: example,
-            phonetic: phonetic
+            phonetic: phonetic,
+            languageCode: languageCode
         )
     }
 }
